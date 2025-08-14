@@ -1,0 +1,5 @@
+{
+  "name": "Cloudflare Gateway Dashboard",
+  "description": "An admin dashboard to monitor and manage a Cloudflare Worker API Gateway. It provides views for requests, logs, and configurations for DTO mappings, ETL processes, and dispatch rules.",
+  "requestFramePermissions": []
+}
