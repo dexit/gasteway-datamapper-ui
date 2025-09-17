@@ -1,10 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import Editor from 'react-simple-code-editor';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-json';
 import { AnyConfig, ConfigType, DtoMapping, EtlConfig, DispatchRule, WebhookConfig } from '../types';
 import { getConfigs, addConfig, updateConfig, deleteConfig } from '../services/api';
 import { Spinner } from './common/Spinner';
 import { Modal } from './common/Modal';
 import { Badge } from './common/Badge';
 import { useToast } from '../contexts/ToastContext';
+import { useTableManager } from '../hooks/useTableManager';
+import { TableControls } from './common/TableControls';
+import { ChevronUpIcon, ChevronDownIcon } from './icons';
 
 interface ConfigManagerProps {
   type: ConfigType;
@@ -13,13 +19,13 @@ interface ConfigManagerProps {
 const getConfigFields = (type: ConfigType): (keyof AnyConfig)[] => {
   switch (type) {
     case ConfigType.DTO:
-      return ['name', 'source_pattern', 'is_active'] as (keyof AnyConfig)[];
+      return ['name', 'source_pattern', 'is_active', 'updated_at'] as (keyof AnyConfig)[];
     case ConfigType.ETL:
-      return ['name', 'source_dto', 'target_format', 'is_active'] as (keyof AnyConfig)[];
+      return ['name', 'source_dto', 'target_format', 'is_active', 'updated_at'] as (keyof AnyConfig)[];
     case ConfigType.Dispatch:
-      return ['name', 'pattern', 'target_url', 'method', 'is_active'] as (keyof AnyConfig)[];
+      return ['name', 'pattern', 'target_url', 'method', 'is_active', 'updated_at'] as (keyof AnyConfig)[];
     case ConfigType.Webhook:
-      return ['provider', 'signature_header', 'is_active'] as (keyof AnyConfig)[];
+      return ['provider', 'signature_header', 'is_active', 'updated_at'] as (keyof AnyConfig)[];
     default:
       return [];
   }
@@ -28,15 +34,15 @@ const getConfigFields = (type: ConfigType): (keyof AnyConfig)[] => {
 const getEmptyConfig = (type: ConfigType): Omit<AnyConfig, 'id' | 'created_at' | 'updated_at'> => {
     switch (type) {
         case ConfigType.DTO: {
-            const config: Omit<DtoMapping, 'id'|'created_at'|'updated_at'> = { name: '', is_active: true, source_pattern: '', target_schema: '{}', transformation_rules: '{}' };
+            const config: Omit<DtoMapping, 'id'|'created_at'|'updated_at'> = { name: '', is_active: true, source_pattern: '', target_schema: '{\n  "key": "value"\n}', transformation_rules: '{\n  "key": "value"\n}' };
             return config;
         }
         case ConfigType.ETL: {
-            const config: Omit<EtlConfig, 'id'|'created_at'|'updated_at'> = { name: '', is_active: true, source_dto: '', target_format: '', extraction_rules: '{}', transformation_rules: '{}', load_rules: '{}' };
+            const config: Omit<EtlConfig, 'id'|'created_at'|'updated_at'> = { name: '', is_active: true, source_dto: '', target_format: '', extraction_rules: '{\n  "key": "value"\n}', transformation_rules: '{\n  "key": "value"\n}', load_rules: '{\n  "key": "value"\n}' };
             return config;
         }
         case ConfigType.Dispatch: {
-            const config: Omit<DispatchRule, 'id'|'created_at'|'updated_at'> = { name: '', is_active: true, pattern: '', target_url: '', method: 'POST', headers: '{}', retry_count: 3, timeout: 30000 };
+            const config: Omit<DispatchRule, 'id'|'created_at'|'updated_at'> = { name: '', is_active: true, pattern: '', target_url: '', method: 'POST', headers: '{\n  "Content-Type": "application/json"\n}', retry_count: 3, timeout: 30000 };
             return config;
         }
         case ConfigType.Webhook: {
@@ -48,26 +54,46 @@ const getEmptyConfig = (type: ConfigType): Omit<AnyConfig, 'id' | 'created_at' |
 }
 
 export const ConfigManager: React.FC<ConfigManagerProps> = ({ type }) => {
-  const [configs, setConfigs] = useState<AnyConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<AnyConfig | Omit<AnyConfig, 'id' | 'created_at' | 'updated_at'> | null>(null);
   const { addToast } = useToast();
 
-  const fields = getConfigFields(type);
+  const tableFields = getConfigFields(type);
+
+  // FIX: The `AnyConfig` type is a union, so `keyof AnyConfig` only includes common properties.
+  // By adding an index signature `& { [key: string]: any }`, we can use keys that are
+  // not common to all config types in `searchableKeys`.
+  const {
+    paginatedItems,
+    requestSort,
+    sortConfig,
+    handleFilterChange,
+    filter,
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    setItems: setAllConfigs,
+    totalItems,
+    itemsPerPage,
+  } = useTableManager<AnyConfig & { [key: string]: any }>({
+      itemsPerPage: 10,
+      initialSortKey: 'updated_at',
+      searchableKeys: ['name', 'source_pattern', 'source_dto', 'target_format', 'pattern', 'target_url', 'method', 'provider'],
+  });
 
   const fetchConfigs = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getConfigs(type);
-      setConfigs(data.sort((a,b) => b.created_at - a.created_at));
+      setAllConfigs(data);
     } catch (error) {
       console.error(`Failed to fetch ${type}:`, error);
       addToast(`Failed to fetch ${type}: ${error instanceof Error ? error.message : String(error)}`, 'error');
     } finally {
       setLoading(false);
     }
-  }, [type, addToast]);
+  }, [type, addToast, setAllConfigs]);
 
   useEffect(() => {
     fetchConfigs();
@@ -122,6 +148,9 @@ export const ConfigManager: React.FC<ConfigManagerProps> = ({ type }) => {
     if (typeof value === 'boolean') {
       return <Badge color={value ? 'green' : 'gray'}>{value ? 'Active' : 'Inactive'}</Badge>;
     }
+    if (field === 'updated_at' || field === 'created_at') {
+        return new Date(value as number).toLocaleString();
+    }
     if (typeof value === 'string' && value.length > 50) {
         return <span className="truncate block max-w-xs font-mono text-slate-400">{value}</span>;
     }
@@ -129,6 +158,16 @@ export const ConfigManager: React.FC<ConfigManagerProps> = ({ type }) => {
         return <span className="font-mono text-slate-400">{value}</span>
     }
     return String(value);
+  };
+
+  const renderSortIcon = (key: keyof AnyConfig) => {
+    if (!sortConfig || sortConfig.key !== key) {
+        return <span className="w-4 h-4 text-slate-500 inline-block ml-2 opacity-0 group-hover:opacity-100 transition-opacity"><ChevronDownIcon/></span>;
+    }
+    if (sortConfig.direction === 'ascending') {
+        return <span className="w-4 h-4 text-slate-300 inline-block ml-2"><ChevronUpIcon/></span>;
+    }
+    return <span className="w-4 h-4 text-slate-300 inline-block ml-2"><ChevronDownIcon/></span>;
   };
 
   const renderModalForm = () => {
@@ -156,14 +195,15 @@ export const ConfigManager: React.FC<ConfigManagerProps> = ({ type }) => {
           if (isJsonString) {
             return (
               <div key={key}>
-                <label htmlFor={key} className="block text-sm font-medium text-slate-300 capitalize">{key.replace(/_/g, ' ')}</label>
-                <textarea
-                  id={key}
-                  rows={6}
+                <label htmlFor={key} className="block text-sm font-medium text-slate-300 capitalize mb-1">{key.replace(/_/g, ' ')}</label>
+                <Editor
                   value={value as string}
-                  onChange={e => handleInputChange(key, e.target.value)}
-                  className="mt-1 block w-full rounded-md bg-slate-950 border-slate-700 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm text-slate-200 font-mono"
-                  spellCheck="false"
+                  onValueChange={code => handleInputChange(key, code)}
+                  highlight={code => Prism.highlight(code, Prism.languages.json, 'json')}
+                  padding={12}
+                  className="code-editor"
+                  textareaClassName="text-slate-200"
+                  style={{ minHeight: 150 }}
                 />
               </div>
             );
@@ -213,27 +253,41 @@ export const ConfigManager: React.FC<ConfigManagerProps> = ({ type }) => {
 
   return (
     <>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-2">
         <h1 className="text-3xl font-bold text-white">{type}</h1>
         <button onClick={() => handleOpenModal(null)} className="px-4 py-2 text-sm font-medium text-white bg-cyan-500 rounded-md hover:bg-cyan-600">
           Add New
         </button>
       </div>
+      <TableControls
+          filter={filter}
+          onFilterChange={handleFilterChange}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+      />
        <div className="bg-slate-900 rounded-lg shadow-lg border border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-800">
             <thead className="bg-slate-800">
               <tr>
-                {fields.map(field => (
-                  <th key={String(field)} scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider capitalize">{String(field).replace(/_/g, ' ')}</th>
+                {tableFields.map(field => (
+                  <th key={String(field)} scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                    <button onClick={() => requestSort(field)} className="group flex items-center capitalize">
+                      {String(field).replace(/_/g, ' ')}
+                      {renderSortIcon(field)}
+                    </button>
+                  </th>
                 ))}
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-slate-300 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {configs.map((config) => (
+              {paginatedItems.map((config) => (
                 <tr key={config.id} className="hover:bg-slate-800/50 transition-colors">
-                  {fields.map(field => (
+                  {tableFields.map(field => (
                      <td key={`${config.id}-${String(field)}`} className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{renderFieldValue(config, field)}</td>
                   ))}
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">

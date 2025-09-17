@@ -10,8 +10,8 @@ interface SidebarProps {
 interface NavSection {
   title: string;
   icon: React.ReactNode;
-  // FIX: Changed icon type from React.ReactNode to React.ReactElement to satisfy React.cloneElement.
-  pages: { page: Page; label: string, icon: React.ReactElement }[];
+  // FIX: Changed icon type to be a ReactElement that accepts a className prop to fix an issue with React.cloneElement.
+  pages: { page: Page; label: string, icon: React.ReactElement<{ className?: string }> }[];
 }
 
 const NavLink: React.FC<{

@@ -11,7 +11,9 @@
   "dependencies": {
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "recharts": "2.12.7"
+    "recharts": "2.12.7",
+    "react-simple-code-editor": "0.13.1",
+    "prismjs": "1.29.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
