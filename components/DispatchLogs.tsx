@@ -4,11 +4,13 @@ import { DispatchLog } from '../types';
 import { Spinner } from './common/Spinner';
 import { Modal } from './common/Modal';
 import { Badge } from './common/Badge';
+import { useToast } from '../contexts/ToastContext';
 
 export const DispatchLogs: React.FC = () => {
   const [logs, setLogs] = useState<DispatchLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedLog, setSelectedLog] = useState<DispatchLog | null>(null);
+  const { addToast } = useToast();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -18,12 +20,13 @@ export const DispatchLogs: React.FC = () => {
         setLogs(data.sort((a,b) => b.timestamp - a.timestamp));
       } catch (error) {
         console.error("Failed to fetch dispatch logs:", error);
+        addToast(`Failed to fetch dispatch logs: ${error instanceof Error ? error.message : String(error)}`, 'error');
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, []);
+  }, [addToast]);
 
   const getStatusBadgeColor = (status: DispatchLog['status']) => {
     switch (status) {

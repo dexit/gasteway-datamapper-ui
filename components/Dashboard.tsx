@@ -5,11 +5,13 @@ import { Spinner } from './common/Spinner';
 import { IngestIcon, DispatchIcon, AlertTriangleIcon, WebhookIcon, ClockIcon } from './icons';
 import { RawRequest } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useToast } from '../contexts/ToastContext';
 
 export const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<{ totalIngest: number; totalDispatch: number; failedDispatch: number; activeWebhooks: number; avgExecutionTime: number } | null>(null);
   const [requests, setRequests] = useState<RawRequest[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const { addToast } = useToast();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -19,17 +21,19 @@ export const Dashboard: React.FC = () => {
             getDashboardStats(),
             getIngestRequests()
         ]);
-        setStats(statsData);
+        // FIX: Cast statsData to the expected type to resolve the 'unknown' type error.
+        setStats(statsData as NonNullable<typeof stats>);
         setRequests(requestsData);
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
+        addToast(`Failed to load dashboard: ${error instanceof Error ? error.message : String(error)}`, 'error');
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [addToast]);
 
   const getChartData = () => {
     if (!requests) return [];
@@ -62,7 +66,7 @@ export const Dashboard: React.FC = () => {
   }
 
   if (!stats) {
-    return <p>Failed to load dashboard data.</p>;
+    return <p>Failed to load dashboard data. Check the notifications for more details.</p>;
   }
   
   const chartData = getChartData();

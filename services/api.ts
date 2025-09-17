@@ -122,6 +122,13 @@ const simulateApiCall = <T,>(data: T): Promise<T> =>
   new Promise(resolve => setTimeout(() => resolve(JSON.parse(JSON.stringify(data))), 300 + Math.random() * 400));
 
 export const getDashboardStats = async () => {
+    // Simulate a network failure occasionally
+    if (Math.random() < 0.1) {
+        return new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Failed to connect to the statistics service.')), 500);
+        });
+    }
+    
     const totalIngest = mockRawRequests.length;
     const totalDispatch = mockDispatchLogs.length;
     const failedDispatch = mockDispatchLogs.filter(log => log.status === 'FAILED').length;
@@ -162,15 +169,21 @@ export const updateConfig = (type: ConfigType, config: AnyConfig) => {
         db[index] = updatedConfig;
         return simulateApiCall(updatedConfig);
     }
-    return Promise.reject('Config not found');
+    return Promise.reject(new Error('Config not found'));
 };
 
 export const deleteConfig = (type: ConfigType, id: string) => {
     const db = MOCK_DB[type];
     const index = db.findIndex(c => c.id === id);
     if (index !== -1) {
+        // Simulate a protected config that cannot be deleted
+        if (index === 0) {
+            return new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('This is a protected configuration and cannot be deleted.')), 400);
+            });
+        }
         const deleted = db.splice(index, 1);
         return simulateApiCall(deleted[0]);
     }
-    return Promise.reject('Config not found');
+    return Promise.reject(new Error('Config not found'));
 };

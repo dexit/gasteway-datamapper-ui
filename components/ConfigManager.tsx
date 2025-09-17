@@ -4,6 +4,7 @@ import { getConfigs, addConfig, updateConfig, deleteConfig } from '../services/a
 import { Spinner } from './common/Spinner';
 import { Modal } from './common/Modal';
 import { Badge } from './common/Badge';
+import { useToast } from '../contexts/ToastContext';
 
 interface ConfigManagerProps {
   type: ConfigType;
@@ -51,6 +52,7 @@ export const ConfigManager: React.FC<ConfigManagerProps> = ({ type }) => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<AnyConfig | Omit<AnyConfig, 'id' | 'created_at' | 'updated_at'> | null>(null);
+  const { addToast } = useToast();
 
   const fields = getConfigFields(type);
 
@@ -61,10 +63,11 @@ export const ConfigManager: React.FC<ConfigManagerProps> = ({ type }) => {
       setConfigs(data.sort((a,b) => b.created_at - a.created_at));
     } catch (error) {
       console.error(`Failed to fetch ${type}:`, error);
+      addToast(`Failed to fetch ${type}: ${error instanceof Error ? error.message : String(error)}`, 'error');
     } finally {
       setLoading(false);
     }
-  }, [type]);
+  }, [type, addToast]);
 
   useEffect(() => {
     fetchConfigs();
@@ -86,11 +89,14 @@ export const ConfigManager: React.FC<ConfigManagerProps> = ({ type }) => {
     try {
         if ('id' in editingConfig) {
             await updateConfig(type, editingConfig as AnyConfig);
+            addToast(`${type} updated successfully.`, 'success');
         } else {
             await addConfig(type, editingConfig as Omit<AnyConfig, 'id' | 'created_at' | 'updated_at'>);
+            addToast(`${type} added successfully.`, 'success');
         }
     } catch (error) {
         console.error(`Failed to save config:`, error);
+        addToast(`Failed to save config: ${error instanceof Error ? error.message : String(error)}`, 'error');
     } finally {
         handleCloseModal();
         fetchConfigs();
@@ -101,8 +107,10 @@ export const ConfigManager: React.FC<ConfigManagerProps> = ({ type }) => {
     if(window.confirm("Are you sure you want to delete this configuration?")) {
         try {
             await deleteConfig(type, id);
+            addToast(`${type} deleted successfully.`, 'success');
         } catch(error) {
             console.error('Failed to delete config:', error);
+            addToast(`Failed to delete config: ${error instanceof Error ? error.message : String(error)}`, 'error');
         } finally {
             fetchConfigs();
         }

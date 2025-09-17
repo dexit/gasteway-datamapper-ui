@@ -4,11 +4,13 @@ import { RawRequest } from '../types';
 import { Spinner } from './common/Spinner';
 import { Modal } from './common/Modal';
 import { Badge } from './common/Badge';
+import { useToast } from '../contexts/ToastContext';
 
 export const IngestRequests: React.FC = () => {
   const [requests, setRequests] = useState<RawRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<RawRequest | null>(null);
+  const { addToast } = useToast();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -18,12 +20,13 @@ export const IngestRequests: React.FC = () => {
         setRequests(data.sort((a,b) => b.timestamp - a.timestamp));
       } catch (error) {
         console.error("Failed to fetch raw requests:", error);
+        addToast(`Failed to fetch ingest requests: ${error instanceof Error ? error.message : String(error)}`, 'error');
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, []);
+  }, [addToast]);
 
   const getMethodBadgeColor = (method: string) => {
     switch (method.toUpperCase()) {

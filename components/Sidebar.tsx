@@ -10,7 +10,8 @@ interface SidebarProps {
 interface NavSection {
   title: string;
   icon: React.ReactNode;
-  pages: { page: Page; label: string, icon: React.ReactNode }[];
+  // FIX: Changed icon type from React.ReactNode to React.ReactElement to satisfy React.cloneElement.
+  pages: { page: Page; label: string, icon: React.ReactElement }[];
 }
 
 const NavLink: React.FC<{
@@ -101,7 +102,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage })
     <aside className="w-64 bg-slate-900 border-r border-slate-800 flex-shrink-0 flex flex-col p-4 h-full">
       <div className="flex items-center mb-8 flex-shrink-0">
         <div className="bg-cyan-500 p-2 rounded-lg">
-          <svg className="w-6 h-6 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M16.88,2.88L14.12,5.65L12,7.77L9.88,5.65L7.12,2.88L2.88,7.12L5.65,9.88L7.77,12L5.65,14.12L2.88,16.88L7.12,21.12L9.88,18.35L12,16.23L14.12,18.35L16.88,21.12L21.12,16.88L18.35,14.12L16.23,12L18.35,9.88L21.12,7.12L16.88,2.88Z" /></svg>
+          <svg className="w-6 h-6 text-white" xmlns="http://www.w.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M16.88,2.88L14.12,5.65L12,7.77L9.88,5.65L7.12,2.88L2.88,7.12L5.65,9.88L7.77,12L5.65,14.12L2.88,16.88L7.12,21.12L9.88,18.35L12,16.23L14.12,18.35L16.88,21.12L21.12,16.88L18.35,14.12L16.23,12L18.35,9.88L21.12,7.12L16.88,2.88Z" /></svg>
         </div>
         <h1 className="text-xl font-bold text-white ml-3 hidden md:block">Gateway UI</h1>
       </div>
