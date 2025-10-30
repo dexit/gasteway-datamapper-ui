@@ -122,13 +122,6 @@ const simulateApiCall = <T,>(data: T): Promise<T> =>
   new Promise(resolve => setTimeout(() => resolve(JSON.parse(JSON.stringify(data))), 300 + Math.random() * 400));
 
 export const getDashboardStats = async () => {
-    // Simulate a network failure occasionally
-    if (Math.random() < 0.1) {
-        return new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Failed to connect to the statistics service.')), 500);
-        });
-    }
-    
     const totalIngest = mockRawRequests.length;
     const totalDispatch = mockDispatchLogs.length;
     const failedDispatch = mockDispatchLogs.filter(log => log.status === 'FAILED').length;
